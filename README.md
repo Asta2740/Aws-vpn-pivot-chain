@@ -17,7 +17,7 @@ Anyone who follows this repo can rebuild the exact tunnel chain.
 
 ---
 
-# 🚀 Architecture Diagram
+#  Architecture Diagram
 
 ```
 +---------------+      tun0 (10.8.0.0/24)       +---------------------------+
@@ -33,7 +33,7 @@ Anyone who follows this repo can rebuild the exact tunnel chain.
                                                  +--------------+
 ```
 
-# 🧪 Testing
+#  Testing
 
 On AWS:
 ```
