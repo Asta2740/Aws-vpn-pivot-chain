@@ -1,0 +1,14 @@
+[Unit]
+Description=THM OpenVPN Tunnel
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/sbin/openvpn --config /etc/openvpn/{YOUR_TryHackMe_CONFIG}.ovpn
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
