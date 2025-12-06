@@ -89,4 +89,3 @@ if [ "$copy_needed" = false ]; then
     echo "[INFO] No files needed copying. Everything already in place."
 fi
 
-echo "🔥 All steps completed without wasting time."

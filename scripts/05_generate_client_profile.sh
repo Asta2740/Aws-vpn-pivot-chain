@@ -26,3 +26,6 @@ cipher AES-256-CBC
 auth SHA256
 verb 3
 EOF
+
+cp client1.ovpn /home/ubuntu/client1.ovpn
+echo "Client profile 'client1.ovpn' generated and copied to /home/ubuntu/"
