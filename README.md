@@ -8,7 +8,6 @@ Your Machine → AWS OpenVPN Server → TryHackMe OpenVPN Tunnel → Target Netw
 This setup allows you to:
 
 - Route ALL traffic through AWS  
-- Mask your home IP  
 - Pivot traffic into TryHackMe (or any OpenVPN provider)  
 - Maintain persistent tunnels via systemd  
 - Build repeatable, cloud-hosted VPN chains  
@@ -27,11 +26,28 @@ AWS acts as:
 
 Resulting in a chained VPN path:
 
+Note : you might want Check the vpn interfaces via
+```
+ip addr
+```
+and configure the  07_enable_pivot_nat.sh Based on it
+
 ```
 Client → AWS (tun0) → NAT → THM (tun1) → Target Machines
 ```
 
 ---
+## Note
+
+This works with THM Eu West (Ireland) server , if you need it to work with the others go to configs/server.conf and change  the following line 
+
+push "route 10.80.0.0 255.240.0.0"
+
+to
+push "route 10.64.0.0 255.240.0.0" if you're connecting to  US East
+
+or
+push "route 10.49.0.0 255.240.0.0" if you're connecting to Mumbai
 
 # 📂 Repository Structure
 
@@ -42,7 +58,7 @@ aws-vpn-pivot-chain/
 │
 ├── configs/
 │   ├── server.conf
-│   ├── ufw-before.rules    (no longer used; SG replaces UFW)
+│   ├── ufw-before.rules    (no longer used; SG replaces UFW if you're using AWS)
 │   └── sysctl.conf
 │
 ├── scripts/
@@ -67,8 +83,8 @@ aws-vpn-pivot-chain/
 Use:
 
 - Ubuntu 22.04 LTS  
-- t2.micro or larger  
-- Optional: Elastic IP for stability  
+ 
+
 
 ## 🔥 AWS Security Group Rules
 
@@ -95,23 +111,103 @@ sudo apt update && sudo apt install openvpn easy-rsa -y
 #  3. Generate PKI (Certificates + Keys)
 
 ```
-make-cadir ~/openvpn-ca
-cd ~/openvpn-ca
+#!/bin/bash
+set -e
 
-./easyrsa init-pki
-./easyrsa build-ca nopass
+directory_name="/root/openvpn-ca"
 
-./easyrsa build-server-full server nopass
-./easyrsa gen-dh
-./easyrsa build-client-full client1 nopass
+# Create directory only if missing
+if [ ! -d "$directory_name" ]; then
+    make-cadir "$directory_name"
+    echo "Directory '$directory_name' created."
+else
+    echo "Directory '$directory_name' already exists."
+fi
+
+cd "$directory_name"
+
+# ---------------------------
+# 1) PKI INIT
+# ---------------------------
+if [ ! -d "pki" ]; then
+    ./easyrsa init-pki
+    echo "[OK] PKI initialized."
+else
+    echo "[SKIP] PKI already exists."
+fi
+
+# ---------------------------
+# 2) CA CERT
+# ---------------------------
+if [ ! -f "pki/ca.crt" ]; then
+    ./easyrsa build-ca nopass
+    echo "[OK] CA created."
+else
+    echo "[SKIP] CA already exists."
+fi
+
+# ---------------------------
+# 3) DH PARAMS
+# ---------------------------
+if [ ! -f "pki/dh.pem" ]; then
+    ./easyrsa gen-dh
+    echo "[OK] DH generated."
+else
+    echo "[SKIP] DH already exists."
+fi
+
+# ---------------------------
+# 4) SERVER CERT/KEY
+# ---------------------------
+if [ ! -f "pki/issued/server.crt" ]; then
+    ./easyrsa build-server-full server nopass
+    echo "[OK] Server cert built."
+else
+    echo "[SKIP] Server cert already exists."
+fi
+
+# ---------------------------
+# 5) CLIENT CERT: Client1
+# ---------------------------
+CLIENT="Client1"
+if [ ! -f "pki/issued/${CLIENT}.crt" ]; then
+    ./easyrsa build-client-full "$CLIENT" nopass
+    echo "[OK] Client '$CLIENT' cert built."
+else
+    echo "[SKIP] Client '$CLIENT' cert already exists."
+fi
+
+
 ```
 
 Copy keys:
 
 ```
-sudo cp pki/{ca.crt,dh.pem} /etc/openvpn/server/
-sudo cp pki/issued/server.crt /etc/openvpn/server/
-sudo cp pki/private/server.key /etc/openvpn/server/
+# ---------------------------
+# 6) COPY FILES TO /etc/openvpn/server
+# ---------------------------
+DEST="/etc/openvpn/server"
+
+mkdir -p "$DEST"
+
+copy_needed=false
+
+# Check each file before copying
+for f in pki/ca.crt pki/dh.pem pki/issued/server.crt pki/private/server.key; do
+    filename="$(basename $f)"
+    if [ ! -f "$DEST/$filename" ]; then
+        sudo cp "$f" "$DEST/"
+        echo "[OK] Copied $filename"
+        copy_needed=true
+    else
+        echo "[SKIP] $filename already exists in $DEST"
+    fi
+done
+
+if [ "$copy_needed" = false ]; then
+    echo "[INFO] No files needed copying. Everything already in place."
+fi
+
 ```
 
 ---
@@ -119,7 +215,7 @@ sudo cp pki/private/server.key /etc/openvpn/server/
 #  4. Install server.conf
 
 ```
-sudo cp configs/server.conf /etc/openvpn/server/server.conf
+sudo cp ../configs/server.conf /etc/openvpn/server/server.conf
 sudo systemctl enable openvpn-server@server
 sudo systemctl restart openvpn-server@server
 ```
@@ -129,7 +225,7 @@ sudo systemctl restart openvpn-server@server
 #  5. Enable IP Forwarding
 
 ```
-sudo cp configs/sysctl.conf /etc/sysctl.conf
+sudo cp ../configs/sysctl.conf /etc/sysctl.conf
 sudo sysctl -p
 ```
 
@@ -139,7 +235,7 @@ sudo sysctl -p
 
 ```
 cd scripts
-sudo bash 07_install_noip.sh
+sudo  ./07_install_noip.sh
 ```
 
 ---
@@ -208,7 +304,7 @@ Client → tun0 → tun1 → TryHackMe → Targets
 Install the auto-start service:
 
 ```
-sudo bash scripts/09_install_thm_service.sh
+sudo bash scripts/08_install_thm_service.sh
 ```
 
 This installs:
@@ -266,7 +362,7 @@ Import into your OpenVPN client.
 Verify IP routing:
 
 ```
-curl ifconfig.me
+ip route
 ```
 
 You should now see **AWS’s public IP**.
@@ -319,7 +415,6 @@ You now have a fully functional VPN pivot chain that is:
 - Persistent  
 - Secure  
 - Reproducible  
-- Ideal for labs, red-team style routing, and identity separation  
 
 Anyone following this guide can recreate the exact setup.
 
