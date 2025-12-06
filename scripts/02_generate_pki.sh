@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
-mkdir ~/openvpn-ca
+directory_name="~/openvpn-ca"
+
+if [ ! -d "$directory_name" ]; then
+    mkdir "$directory_name"
+    echo "Directory '$directory_name' created."
+else
+    echo "Directory '$directory_name' already exists."
+fi
 cd ~/openvpn-ca
 ./easyrsa init-pki
 ./easyrsa build-ca nopass
