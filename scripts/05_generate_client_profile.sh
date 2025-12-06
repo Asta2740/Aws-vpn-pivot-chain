@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-cd ~/openvpn-ca
+cd /root/openvpn-ca
 
 cat > client1.ovpn <<EOF
 client
