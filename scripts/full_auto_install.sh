@@ -5,6 +5,8 @@ set -e
 ./03_configure_server.sh
 ./04_enable_forwarding.sh
 ./05_generate_client_profile.sh
+echo "Uncomment the next line to install No-IP client for dynamic DNS updates."
 #./06_install_noip.sh
-#echo "Configure your client1.ovpn Change YOUR_DDNS to your No-IP DNS or the Server IP."
+# echo "Configure your client1.ovpn Change YOUR_DDNS to your No-IP DNS or the Server IP."
 echo "Run THM OpenVPN manually, then execute ./07_enable_pivot_nat.sh to enable NAT routing."
+echo "Run ./08_install_thm_service.sh to set up THM OpenVPN as a service after verifying it works."
